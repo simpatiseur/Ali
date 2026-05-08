@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Science CI PRO</title>
+<style>
+:root{--bg:#0b0f1a;--card:#161e2d;--orange:#f97316;--green:#10b981;--red:#ef4444;--border:#1e293b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#fff;font-family:'Segoe UI',sans-serif;padding:14px;min-height:100vh}
+h2{text-align:center;color:var(--orange);font-size:1.3rem;margin-bottom:18px;letter-spacing:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.card{background:var(--card);padding:18px 10px;border-radius:14px;text-align:center;border:1px solid var(--border);cursor:pointer;font-size:.9rem;transition:border-color .2s}
+.card:active{opacity:.8}.card:hover{border-color:var(--orange)}
+.card span{display:block;font-size:1.8rem;margin-bottom:6px}
+
+/* VISIONNEUSE PLEIN ÉCRAN */
+#viewer{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;flex-direction:column;background:#f5f7fa}
+#viewer.open{display:flex}
+#viewer-header{background:#0ab395;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#viewer-back{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#viewer-title{color:white;font-weight:800;font-size:.95rem;flex:1}
+#viewer-iframe{flex:1;border:none;width:100%;height:100%}
+
+/* COURS */
+#cours-box{display:none;background:#161e2d;border-radius:14px;border:1px solid var(--orange);margin-bottom:18px;overflow:hidden}
+.cours-header{background:linear-gradient(135deg,#0ab395,#0891b2);padding:14px;display:flex;align-items:center;gap:10px}
+.cours-header-icon{font-size:1.8rem}
+.cours-header-text h3{font-size:1rem;font-weight:900;color:white;margin-bottom:2px}
+.cours-header-text p{font-size:.75rem;color:rgba(255,255,255,.8)}
+.matiere-bloc{padding:12px 14px}
+.matiere-titre{font-size:.72rem;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.matiere-titre::before{content:'';display:block;width:20px;height:2px;background:var(--orange);border-radius:2px}
+.cours-liste{display:flex;flex-direction:column;gap:8px}
+.cours-item{background:#0f172a;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;border:1px solid #1e293b;transition:border-color .2s}
+.cours-item:hover{border-color:#0ab395}
+.cours-item:active{opacity:.8}
+.cours-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.cours-info{flex:1}
+.cours-nom{font-size:.86rem;font-weight:800;color:white;margin-bottom:2px}
+.cours-detail{font-size:.72rem;color:#64748b}
+.cours-arrow{font-size:.9rem;color:#64748b}
+.cours-locked{opacity:.4;cursor:not-allowed}
+.sep-matiere{height:1px;background:#1e293b;margin:10px 0}
+.fermer-btn{width:100%;padding:12px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;font-family:'Segoe UI',sans-serif}
+
+/* CALCULATRICE */
+#calc-box{display:none;background:#1e293b;padding:14px;border-radius:14px;border:1px solid var(--orange);margin-bottom:18px}
+.screen{width:100%;min-height:54px;background:#000;color:#0f0;text-align:right;font-size:1.3rem;padding:10px 14px;border:none;border-radius:8px;font-family:monospace;word-break:break-all}
+.btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.btns button{padding:15px 4px;border-radius:8px;border:none;background:#334155;color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+.btns button:active{opacity:.7}
+.op{background:var(--orange)!important}
+.eq{background:var(--green)!important;grid-column:span 4}
+.cl{background:var(--red)!important}
+.dl{background:#64748b!important}
+
+/* GRAPHEUR */
+#graph-box{display:none;background:#1e293b;padding:0;border-radius:14px;border:1px solid var(--orange);margin-bottom:18px;overflow:hidden}
+.graph-top{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;padding:14px 14px 0}
+#fn-input{flex:1;min-width:160px;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:1rem}
+#btn-draw{padding:10px 16px;border-radius:8px;border:none;background:var(--orange);color:#fff;font-weight:700;cursor:pointer;font-size:1rem}
+#btn-reset{padding:10px 14px;border-radius:8px;border:none;background:#334155;color:#fff;cursor:pointer;font-size:1rem}
+#graph-canvas{width:100%;display:block;touch-action:none}
+.graph-hint{font-size:.75rem;color:#64748b;text-align:center;padding:6px 14px 14px}
+#fn-error{color:#f87171;font-size:.8rem;min-height:16px;padding:0 14px}
+</style>
+</head>
+<body>
+
+<!-- VISIONNEUSE COURS PLEIN ÉCRAN -->
+<div id="viewer">
+  <div id="viewer-header">
+    <button id="viewer-back" onclick="fermerViewer()">←</button>
+    <span id="viewer-title">Cours</span>
+  </div>
+  <iframe id="viewer-iframe" src="about:blank"></iframe>
+</div>
+
+<!-- PAGE PRINCIPALE -->
+<h2>⚗️ SCIENCE CI PRO</h2>
+
+<div class="grid">
+  <div class="card" onclick="toggle('calc')"><span>🧮</span>Calculatrice</div>
+  <div class="card" onclick="toggle('graph')"><span>📈</span>Grapheur Pro</div>
+</div>
+
+<div style="margin-bottom:18px">
+  <div class="card" onclick="toggle('cours')" style="padding:16px 10px">
+    <span>📚</span>Cours 3ème
+    <div style="font-size:.72rem;color:#64748b;margin-top:4px">Physique · Chimie · CI</div>
+  </div>
+</div>
+
+<!-- LISTE DES COURS -->
+<div id="cours-box">
+  <div class="cours-header">
+    <div class="cours-header-icon">📚</div>
+    <div class="cours-header-text">
+      <h3>Cours de 3ème</h3>
+      <p>Physique-Chimie · Côte d'Ivoire</p>
+    </div>
+  </div>
+  <div class="matiere-bloc">
+
+    <div class="matiere-titre">🔭 Physique – Optique</div>
+    <div class="cours-liste">
+      <div class="cours-item" onclick="ouvrirCours('lecon1_les_lentilles.html','Les Lentilles')">
+        <div class="cours-icon" style="background:rgba(10,179,149,.15)">🔍</div>
+        <div class="cours-info">
+          <div class="cours-nom">Les Lentilles</div>
+          <div class="cours-detail">Leçon 1 · Vergence · Construction · Tracé</div>
+        </div>
+        <div class="cours-arrow">›</div>
+      </div>
+      <div class="cours-item" onclick="ouvrirCours('lecon2_defauts_oeil.html','Défauts de l\'Œil')">
+        <div class="cours-icon" style="background:rgba(59,130,246,.15)">👁️</div>
+        <div class="cours-info">
+          <div class="cours-nom">Les Défauts de l'Œil</div>
+          <div class="cours-detail">Leçon 2 · Myopie · Hypermétropie · Correction</div>
+        </div>
+        <div class="cours-arrow">›</div>
+      </div>
+    </div>
+
+    <div class="sep-matiere"></div>
+    <div class="matiere-titre">⚙️ Physique – Mécanique</div>
+    <div class="cours-liste">
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(249,115,22,.15)">⚖️</div>
+        <div class="cours-info"><div class="cours-nom">Poids et Masse</div><div class="cours-detail">Leçon 3 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(249,115,22,.15)">💪</div>
+        <div class="cours-info"><div class="cours-nom">Les Forces</div><div class="cours-detail">Leçon 4 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(249,115,22,.15)">⚡</div>
+        <div class="cours-info"><div class="cours-nom">Travail & Puissance</div><div class="cours-detail">Leçon 5 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+    </div>
+
+    <div class="sep-matiere"></div>
+    <div class="matiere-titre">🔌 Physique – Électricité</div>
+    <div class="cours-liste">
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(234,179,8,.15)">💡</div>
+        <div class="cours-info"><div class="cours-nom">Puissance & Énergie Électrique</div><div class="cours-detail">Leçon 6 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+    </div>
+
+    <div class="sep-matiere"></div>
+    <div class="matiere-titre">🧪 Chimie</div>
+    <div class="cours-liste">
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(168,85,247,.15)">⚗️</div>
+        <div class="cours-info"><div class="cours-nom">Électrolyse & Synthèse de l'eau</div><div class="cours-detail">Leçon 7 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(168,85,247,.15)">🛢️</div>
+        <div class="cours-info"><div class="cours-nom">Les Alcanes</div><div class="cours-detail">Leçon 8 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+      <div class="cours-item cours-locked">
+        <div class="cours-icon" style="background:rgba(168,85,247,.15)">🧫</div>
+        <div class="cours-info"><div class="cours-nom">Solutions Acides & Basiques</div><div class="cours-detail">Leçon 9 · Bientôt disponible</div></div>
+        <div class="cours-arrow">🔒</div>
+      </div>
+    </div>
+
+  </div>
+  <button class="fermer-btn" onclick="toggle('cours')">✕ Fermer la liste</button>
+</div>
+
+<!-- CALCULATRICE -->
+<div id="calc-box">
+  <div id="screen" class="screen">0</div>
+  <div class="btns">
+    <button class="cl" onclick="clr()">C</button>
+    <button class="dl" onclick="del()">⌫</button>
+    <button onclick="add('(')">(</button>
+    <button onclick="add(')')">)</button>
+    <button onclick="add('Math.sqrt(')">√</button>
+    <button onclick="add('Math.PI')">π</button>
+    <button onclick="add('**2')">x²</button>
+    <button class="op" onclick="add('/')">÷</button>
+    <button onclick="add('7')">7</button>
+    <button onclick="add('8')">8</button>
+    <button onclick="add('9')">9</button>
+    <button class="op" onclick="add('*')">×</button>
+    <button onclick="add('4')">4</button>
+    <button onclick="add('5')">5</button>
+    <button onclick="add('6')">6</button>
+    <button class="op" onclick="add('-')">−</button>
+    <button onclick="add('1')">1</button>
+    <button onclick="add('2')">2</button>
+    <button onclick="add('3')">3</button>
+    <button class="op" onclick="add('+')">+</button>
+    <button onclick="add('0')" style="grid-column:span 2">0</button>
+    <button onclick="add('.')">.</button>
+    <button class="op" onclick="add('%')">%</button>
+    <button class="eq" onclick="calc()">=</button>
+  </div>
+  <button class="fermer-btn" style="margin-top:10px;border-radius:8px" onclick="toggle('calc')">✕ Fermer</button>
+</div>
+
+<!-- GRAPHEUR -->
+<div id="graph-box">
+  <div class="graph-top">
+    <input id="fn-input" type="text" placeholder="Ex: x**2 ou Math.sin(x)" autocomplete="off"/>
+    <button id="btn-draw" onclick="drawGraph()">Tracer</button>
+    <button id="btn-reset" onclick="resetView()">↺</button>
+  </div>
+  <div id="fn-error"></div>
+  <canvas id="graph-canvas"></canvas>
+  <div class="graph-hint">Glisse pour déplacer · Pinch pour zoomer</div>
+  <button class="fermer-btn" onclick="toggle('graph')">✕ Fermer</button>
+</div>
+
+<script>
+// ── TOGGLE ouvre/ferme ──
+var actif=null;
+function toggle(nom){
+  var ids={calc:'calc-box',graph:'graph-box',cours:'cours-box'};
+  if(actif===nom){
+    document.getElementById(ids[nom]).style.display='none';
+    actif=null;return;
+  }
+  Object.values(ids).forEach(function(id){document.getElementById(id).style.display='none';});
+  document.getElementById(ids[nom]).style.display='block';
+  actif=nom;
+  document.getElementById(ids[nom]).scrollIntoView({behavior:'smooth'});
+  if(nom==='graph')setTimeout(initCanvas,50);
+}
+
+// ── VISIONNEUSE COURS (plein écran, pas de double header) ──
+function ouvrirCours(fichier,titre){
+  document.getElementById('viewer-title').textContent=titre;
+  document.getElementById('viewer-iframe').src=fichier;
+  document.getElementById('viewer').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function fermerViewer(){
+  document.getElementById('viewer').classList.remove('open');
+  document.getElementById('viewer-iframe').src='about:blank';
+  document.body.style.overflow='';
+}
+
+// ── CALCULATRICE ──
+var expr='';
+function screen(){return document.getElementById('screen');}
+function add(v){if(expr==='0')expr='';expr+=v;screen().textContent=expr;}
+function clr(){expr='';screen().textContent='0';}
+function del(){expr=expr.slice(0,-1);screen().textContent=expr||'0';}
+function calc(){
+  try{var r=Function('"use strict";return('+expr+')')();expr=String(parseFloat(r.toFixed(10)));screen().textContent=expr;}
+  catch(e){screen().textContent='Erreur';expr='';}
+}
+
+// ── GRAPHEUR ──
+var canvas,ctx,W,H,ox=0,oy=0,scale=60,userFn=null;
+var drag={active:false,lastX:0,lastY:0};
+var pinch={active:false,lastDist:0};
+function initCanvas(){
+  canvas=document.getElementById('graph-canvas');
+  var box=canvas.parentElement.getBoundingClientRect();
+  W=box.width;H=Math.min(W*0.8,window.innerHeight*0.5);
+  canvas.width=W;canvas.height=H;ctx=canvas.getContext('2d');
+  resetView();bindEvents();
+}
+function resetView(){ox=0;oy=0;scale=60;redraw();}
+function toCanvas(mx,my){return{x:W/2+(mx-ox)*scale,y:H/2-(my-oy)*scale};}
+function toMath(cx,cy){return{x:ox+(cx-W/2)/scale,y:oy-(cy-H/2)/scale};}
+function redraw(){
+  if(!ctx)return;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0f172a';ctx.fillRect(0,0,W,H);
+  drawGrid();drawAxes();if(userFn)plotFn(userFn);
+}
+function drawGrid(){
+  ctx.strokeStyle='#1e293b';ctx.lineWidth=1;
+  var step=niceStep(scale);
+  var xMin=toMath(0,0).x,xMax=toMath(W,0).x,yMin=toMath(0,H).y,yMax=toMath(0,0).y;
+  var x0=Math.ceil(xMin/step)*step;
+  for(var x=x0;x<=xMax;x+=step){var cx=toCanvas(x,0).x;ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();}
+  var y0=Math.floor(yMin/step)*step;
+  for(var y=y0;y<=yMax;y+=step){var cy=toCanvas(0,y).y;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();}
+  ctx.fillStyle='#475569';ctx.font='10px monospace';ctx.textAlign='center';
+  for(var x=x0;x<=xMax;x+=step){if(Math.abs(x)<1e-9)continue;var cx=toCanvas(x,0).x,ay=toCanvas(0,0).y;ay=Math.max(12,Math.min(H-4,ay));ctx.fillText(round2(x),cx,ay+12);}
+  ctx.textAlign='right';
+  for(var y=y0;y<=yMax;y+=step){if(Math.abs(y)<1e-9)continue;var cy=toCanvas(0,y).y,ax=toCanvas(0,0).x;ax=Math.max(28,Math.min(W-4,ax));ctx.fillText(round2(y),ax-4,cy+4);}
+}
+function drawAxes(){
+  ctx.strokeStyle='#94a3b8';ctx.lineWidth=1.5;
+  var o=toCanvas(0,0);
+  ctx.beginPath();ctx.moveTo(0,o.y);ctx.lineTo(W,o.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(o.x,0);ctx.lineTo(o.x,H);ctx.stroke();
+  ctx.fillStyle='#94a3b8';arrow(W,o.y,'r');arrow(o.x,0,'u');
+  ctx.font='bold 12px monospace';ctx.fillStyle='#f97316';
+  ctx.textAlign='left';ctx.fillText('x',W-14,o.y-6);
+  ctx.textAlign='center';ctx.fillText('y',o.x+8,12);
+}
+function arrow(x,y,dir){
+  ctx.beginPath();
+  if(dir==='r'){ctx.moveTo(x,y);ctx.lineTo(x-8,y-4);ctx.lineTo(x-8,y+4);}
+  if(dir==='u'){ctx.moveTo(x,y);ctx.lineTo(x-4,y+8);ctx.lineTo(x+4,y+8);}
+  ctx.closePath();ctx.fill();
+}
+function plotFn(fn){
+  var steps=W*2,xMin=toMath(0,0).x,xMax=toMath(W,0).x,dx=(xMax-xMin)/steps;
+  ctx.strokeStyle='#f97316';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+  var started=false;
+  for(var i=0;i<=steps;i++){
+    var mx=xMin+i*dx,my;
+    try{my=fn(mx);}catch(e){started=false;continue;}
+    if(!isFinite(my)||isNaN(my)){started=false;continue;}
+    var c=toCanvas(mx,my);
+    if(!started){ctx.moveTo(c.x,c.y);started=true;}else ctx.lineTo(c.x,c.y);
+  }
+  ctx.stroke();
+}
+function niceStep(sc){var raw=80/sc,mag=Math.pow(10,Math.floor(Math.log10(raw))),n=raw/mag;if(n<1.5)return mag;if(n<3.5)return 2*mag;if(n<7.5)return 5*mag;return 10*mag;}
+function round2(v){return parseFloat(v.toPrecision(4));}
+function drawGraph(){
+  var raw=document.getElementById('fn-input').value.trim();
+  var err=document.getElementById('fn-error');err.textContent='';
+  if(!raw){err.textContent='⚠ Entre une fonction.';return;}
+  var fn;
+  try{fn=new Function('x','return '+raw.replace(/\^/g,'**')+';');fn(0);}
+  catch(e){err.textContent='⚠ Erreur : '+e.message;return;}
+  userFn=fn;redraw();
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('fn-input').addEventListener('keydown',function(e){if(e.key==='Enter')drawGraph();});
+});
+function bindEvents(){
+  canvas.addEventListener('mousedown',onDown);canvas.addEventListener('mousemove',onMove);
+  canvas.addEventListener('mouseup',onUp);canvas.addEventListener('wheel',onWheel,{passive:false});
+  canvas.addEventListener('touchstart',onTouchStart,{passive:false});
+  canvas.addEventListener('touchmove',onTouchMove,{passive:false});
+  canvas.addEventListener('touchend',onTouchEnd);
+}
+function onDown(e){drag.active=true;drag.lastX=e.clientX;drag.lastY=e.clientY;}
+function onMove(e){if(!drag.active)return;ox-=(e.clientX-drag.lastX)/scale;oy+=(e.clientY-drag.lastY)/scale;drag.lastX=e.clientX;drag.lastY=e.clientY;redraw();}
+function onUp(){drag.active=false;}
+function onWheel(e){e.preventDefault();var f=e.deltaY<0?1.15:.87,r=canvas.getBoundingClientRect(),mx=toMath(e.clientX-r.left,e.clientY-r.top);scale*=f;ox=mx.x-(e.clientX-r.left-W/2)/scale;oy=mx.y+(e.clientY-r.top-H/2)/scale;redraw();}
+function dist(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);}
+function onTouchStart(e){e.preventDefault();if(e.touches.length===1){drag.active=true;drag.lastX=e.touches[0].clientX;drag.lastY=e.touches[0].clientY;pinch.active=false;}else if(e.touches.length===2){drag.active=false;pinch.active=true;pinch.lastDist=dist(e.touches);}}
+function onTouchMove(e){e.preventDefault();if(pinch.active&&e.touches.length===2){var d=dist(e.touches),r=canvas.getBoundingClientRect(),cx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,cy=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top,mp=toMath(cx,cy);scale*=d/pinch.lastDist;ox=mp.x-(cx-W/2)/scale;oy=mp.y+(cy-H/2)/scale;pinch.lastDist=d;redraw();}else if(drag.active&&e.touches.length===1){ox-=(e.touches[0].clientX-drag.lastX)/scale;oy+=(e.touches[0].clientY-drag.lastY)/scale;drag.lastX=e.touches[0].clientX;drag.lastY=e.touches[0].clientY;redraw();}}
+function onTouchEnd(e){if(e.touches.length<2)pinch.active=false;if(e.touches.length===0)drag.active=false;}
+</script>
+</body>
+</html>
